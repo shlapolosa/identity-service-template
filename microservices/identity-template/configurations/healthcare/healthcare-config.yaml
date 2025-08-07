@@ -1,0 +1,414 @@
+# Healthcare Domain Identity Service Configuration
+# This preset creates a HIPAA-compliant identity service for healthcare organizations
+
+service:
+  name: "healthcare-identity-service"
+  package: "com.healthcare.identity"
+  groupId: "com.healthcare"
+  artifactId: "healthcare-identity-service"
+  version: "1.0.0"
+  domain: "healthcare"
+  description: "HIPAA-compliant identity and access management for healthcare systems"
+
+profiles:
+  - name: "Patient"
+    extends: "BaseProfile"
+    tableName: "patients"
+    discriminatorValue: "PATIENT"
+    attributes:
+      - name: "medicalRecordNumber"
+        type: "String"
+        columnName: "medical_record_number"
+        required: true
+        unique: true
+        length: 50
+      - name: "dateOfBirth"
+        type: "LocalDate"
+        columnName: "date_of_birth"
+        required: true
+      - name: "gender"
+        type: "String"
+        columnName: "gender"
+        required: false
+        length: 20
+      - name: "bloodType"
+        type: "String"
+        columnName: "blood_type"
+        required: false
+        length: 10
+      - name: "insuranceProvider"
+        type: "String"
+        columnName: "insurance_provider"
+        required: false
+        length: 100
+      - name: "insurancePolicyNumber"
+        type: "String"
+        columnName: "insurance_policy_number"
+        required: false
+        length: 50
+      - name: "emergencyContactName"
+        type: "String"
+        columnName: "emergency_contact_name"
+        required: false
+        length: 100
+      - name: "emergencyContactPhone"
+        type: "String"
+        columnName: "emergency_contact_phone"
+        required: false
+        length: 20
+      - name: "fhirPatientId"
+        type: "String"
+        columnName: "fhir_patient_id"
+        required: false
+        unique: true
+        length: 100
+    relationships:
+      - type: "OneToMany"
+        target: "Appointment"
+        mappedBy: "patient"
+        cascade: ["ALL"]
+        fetchType: "LAZY"
+      - type: "OneToMany"
+        target: "MedicalRecord"
+        mappedBy: "patient"
+        cascade: ["ALL"]
+        fetchType: "LAZY"
+    permissions:
+      - "VIEW_OWN_RECORDS"
+      - "BOOK_APPOINTMENT"
+      - "REQUEST_PRESCRIPTION_REFILL"
+    requiresVerification: false
+    verificationWorkflow: "patient-registration"
+
+  - name: "Physician"
+    extends: "BaseProfile"
+    tableName: "physicians"
+    discriminatorValue: "PHYSICIAN"
+    attributes:
+      - name: "licenseNumber"
+        type: "String"
+        columnName: "license_number"
+        required: true
+        unique: true
+        length: 50
+      - name: "npiNumber"
+        type: "String"
+        columnName: "npi_number"
+        required: true
+        unique: true
+        length: 10
+      - name: "specialty"
+        type: "String"
+        columnName: "specialty"
+        required: true
+        length: 100
+      - name: "subSpecialties"
+        type: "String"
+        columnName: "sub_specialties"
+        required: false
+        length: 500
+      - name: "hospitalAffiliations"
+        type: "String"
+        columnName: "hospital_affiliations"
+        required: false
+        length: 500
+      - name: "deaNumber"
+        type: "String"
+        columnName: "dea_number"
+        required: false
+        unique: true
+        length: 20
+      - name: "fhirPractitionerId"
+        type: "String"
+        columnName: "fhir_practitioner_id"
+        required: false
+        unique: true
+        length: 100
+    relationships:
+      - type: "OneToMany"
+        target: "Appointment"
+        mappedBy: "physician"
+        cascade: ["ALL"]
+        fetchType: "LAZY"
+      - type: "OneToMany"
+        target: "Prescription"
+        mappedBy: "prescribingPhysician"
+        cascade: ["ALL"]
+        fetchType: "LAZY"
+    permissions:
+      - "VIEW_ALL_PATIENTS"
+      - "CREATE_PRESCRIPTION"
+      - "UPDATE_MEDICAL_RECORDS"
+      - "ORDER_LAB_TESTS"
+      - "VIEW_LAB_RESULTS"
+    requiresVerification: true
+    verificationWorkflow: "physician-credential-verification"
+
+  - name: "Nurse"
+    extends: "BaseProfile"
+    tableName: "nurses"
+    discriminatorValue: "NURSE"
+    attributes:
+      - name: "licenseNumber"
+        type: "String"
+        columnName: "license_number"
+        required: true
+        unique: true
+        length: 50
+      - name: "nursingDegree"
+        type: "String"
+        columnName: "nursing_degree"
+        required: true
+        length: 50
+      - name: "department"
+        type: "String"
+        columnName: "department"
+        required: false
+        length: 100
+      - name: "shift"
+        type: "String"
+        columnName: "shift"
+        required: false
+        length: 20
+    permissions:
+      - "VIEW_PATIENT_VITALS"
+      - "UPDATE_PATIENT_VITALS"
+      - "ADMINISTER_MEDICATION"
+      - "VIEW_TREATMENT_PLAN"
+    requiresVerification: true
+    verificationWorkflow: "nurse-credential-verification"
+
+  - name: "Administrator"
+    extends: "BaseProfile"
+    tableName: "administrators"
+    discriminatorValue: "ADMINISTRATOR"
+    attributes:
+      - name: "employeeId"
+        type: "String"
+        columnName: "employee_id"
+        required: true
+        unique: true
+        length: 50
+      - name: "department"
+        type: "String"
+        columnName: "department"
+        required: true
+        length: 100
+      - name: "role"
+        type: "String"
+        columnName: "role"
+        required: true
+        length: 100
+    permissions:
+      - "MANAGE_USERS"
+      - "VIEW_AUDIT_LOGS"
+      - "CONFIGURE_SYSTEM"
+      - "GENERATE_REPORTS"
+    requiresVerification: true
+    verificationWorkflow: "admin-approval"
+
+authentication:
+  providers:
+    primary:
+      type: "auth0"
+      config:
+        domain: "${AUTH0_DOMAIN}"
+        clientId: "${AUTH0_CLIENT_ID}"
+        clientSecret: "${AUTH0_CLIENT_SECRET}"
+        audience: "${AUTH0_AUDIENCE}"
+    secondary:
+      type: "ldap"
+      enabled: false
+  methods:
+    - type: "password"
+      enabled: true
+      config:
+        requireStrongPassword: true
+    - type: "biometric"
+      enabled: true
+      config:
+        devices: ["fingerprint", "face"]
+    - type: "mfa"
+      enabled: true
+      config:
+        required: true
+        methods: ["sms", "email", "authenticator"]
+  session:
+    provider: "redis"
+    timeout: 3600
+    refreshEnabled: true
+    maxSessions: 1
+
+integrations:
+  - name: "fhir"
+    type: "fhir"
+    enabled: true
+    config:
+      url: "${FHIR_SERVER_URL}"
+      version: "R4"
+      authentication:
+        type: "oauth2"
+        clientId: "${FHIR_CLIENT_ID}"
+        clientSecret: "${FHIR_CLIENT_SECRET}"
+      timeout: 30000
+      retryPolicy:
+        maxAttempts: 3
+        backoff: "exponential"
+    eventMappings:
+      - event: "PatientRegistered"
+        action: "createFhirPatient"
+        transformer: "PatientToFhirTransformer"
+      - event: "PhysicianRegistered"
+        action: "createFhirPractitioner"
+        transformer: "PhysicianToFhirTransformer"
+  
+  - name: "hl7"
+    type: "hl7"
+    enabled: true
+    config:
+      version: "2.5.1"
+      port: 7001
+      encoding: "ER7"
+  
+  - name: "kafka"
+    type: "kafka"
+    enabled: true
+    config:
+      bootstrapServers: "${KAFKA_BOOTSTRAP_SERVERS}"
+      securityProtocol: "SASL_SSL"
+      saslMechanism: "PLAIN"
+      authentication:
+        username: "${KAFKA_USERNAME}"
+        password: "${KAFKA_PASSWORD}"
+
+features:
+  registration:
+    enabled: true
+    workflows:
+      - name: "patient-self-registration"
+        steps: ["email-verification", "insurance-verification", "create-fhir-record"]
+        approvalRequired: false
+      - name: "physician-registration"
+        steps: ["credential-verification", "license-check", "hospital-affiliation", "create-fhir-practitioner"]
+        approvalRequired: true
+    emailVerification: true
+    phoneVerification: false
+    captcha: true
+  
+  authentication:
+    enabled: true
+    passwordPolicy:
+      minLength: 12
+      requireUppercase: true
+      requireLowercase: true
+      requireNumbers: true
+      requireSpecialChars: true
+      expirationDays: 90
+    accountLockout:
+      enabled: true
+      maxAttempts: 5
+      lockoutDuration: 1800
+  
+  profileManagement:
+    enabled: true
+    selfServiceFields: ["email", "phoneNumber", "emergencyContactName", "emergencyContactPhone"]
+    adminOnlyFields: ["medicalRecordNumber", "licenseNumber", "npiNumber"]
+    auditChanges: true
+  
+  userManagement:
+    enabled: true
+    bulkOperations: true
+    import: true
+    export: false
+  
+  apiAccess:
+    enabled: true
+    rateLimit: 1000
+    authentication: "jwt"
+    documentation: true
+
+compliance:
+  standards: ["HIPAA", "HITECH", "GDPR"]
+  dataClassification:
+    - field: "medicalRecordNumber"
+      classification: "restricted"
+      encryption: true
+    - field: "ssn"
+      classification: "restricted"
+      encryption: true
+    - field: "dateOfBirth"
+      classification: "confidential"
+      encryption: true
+    - field: "insurancePolicyNumber"
+      classification: "confidential"
+      encryption: true
+  audit:
+    enabled: true
+    level: "detailed"
+    retention: 2555 # 7 years for HIPAA
+    storage: "database"
+  encryption:
+    atRest:
+      enabled: true
+      algorithm: "AES-256"
+    inTransit:
+      enabled: true
+      tlsVersion: "1.3"
+  pii:
+    anonymization: true
+    pseudonymization: true
+    rightToErasure: true
+    dataPortability: true
+
+database:
+  type: "postgresql"
+  migrations:
+    tool: "liquibase"
+    autoRun: true
+  connection:
+    poolSize: 20
+    timeout: 5000
+
+messaging:
+  type: "kafka"
+  topics:
+    - name: "patient-events"
+      partitions: 3
+      replicationFactor: 3
+      retention: 604800000 # 7 days
+    - name: "audit-events"
+      partitions: 1
+      replicationFactor: 3
+      retention: 220752000000 # 7 years
+    - name: "appointment-events"
+      partitions: 3
+      replicationFactor: 3
+      retention: 2592000000 # 30 days
+
+observability:
+  metrics:
+    enabled: true
+    provider: "prometheus"
+  tracing:
+    enabled: true
+    provider: "jaeger"
+  logging:
+    level: "INFO"
+    format: "json"
+    output: "cloudwatch"
+
+deployment:
+  containerRegistry: "heathhealthregistry.azurecr.io"
+  namespace: "healthcare"
+  replicas: 3
+  resources:
+    cpu: "500m"
+    memory: "1Gi"
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPU: 70
+  healthChecks:
+    liveness: "/actuator/health/liveness"
+    readiness: "/actuator/health/readiness"

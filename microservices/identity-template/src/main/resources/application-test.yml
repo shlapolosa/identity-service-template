@@ -1,0 +1,164 @@
+# Test Profile Configuration
+# Used for running tests in CI/CD pipelines
+
+spring:
+  # In-memory database for testing
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+    hikari:
+      pool-name: TestHikariCP
+      maximum-pool-size: 2
+      minimum-idle: 1
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: false
+        show_sql: false
+        jdbc:
+          batch_size: 10
+    show-sql: false
+    open-in-view: false
+  
+  liquibase:
+    enabled: false # Use Hibernate DDL for tests
+  
+  # Embedded Redis for testing (if using embedded-redis dependency)
+  data:
+    redis:
+      repositories:
+        enabled: false # Disable Redis repositories for testing
+  
+  # Embedded Kafka for testing (if using spring-kafka-test)
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: 1
+      retries: 0
+    consumer:
+      group-id: test-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    listener:
+      missing-topics-fatal: false
+    admin:
+      fail-fast: false
+  
+  # Disable security for testing
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://test.auth0.com/
+  
+  # Test configuration
+  test:
+    database:
+      replace: none # Don't replace DataSource
+    mockmvc:
+      print: true
+
+# Mock Auth0 for testing
+auth0:
+  domain: test.auth0.com
+  clientId: test-client-id
+  clientSecret: test-client-secret
+  audience: https://test-api
+  enabled: false # Use mock provider
+
+# Mock FHIR for testing
+fhir:
+  server:
+    url: http://localhost:8080/fhir
+    enabled: false # Use mock provider
+
+# Test-specific settings
+test:
+  security:
+    bypass: true
+    mock-user: true
+    default-roles: ADMIN,USER
+  
+  data:
+    seed: true # Load test data
+    cleanup: true # Clean up after tests
+  
+  external-services:
+    mock: true # Mock all external services
+    timeout: 5000 # Short timeout for tests
+
+# Logging for tests
+logging:
+  level:
+    root: WARN
+    com.healthcare.identity: INFO
+    org.springframework.test: INFO
+    org.springframework.web: WARN
+    org.hibernate: WARN
+
+# Performance settings for tests
+server:
+  port: 0 # Random port for tests
+
+# Disable unnecessary features for tests
+management:
+  endpoints:
+    enabled-by-default: false
+  endpoint:
+    health:
+      enabled: true
+  health:
+    defaults:
+      enabled: false
+
+# Test profiles for different test scenarios
+---
+spring:
+  config:
+    activate:
+      on-profile: test-integration
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/test_identity_db
+    username: test_user
+    password: test_pass
+  
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  
+  kafka:
+    bootstrap-servers: localhost:9092
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test-security
+  
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://test.auth0.com/
+          jwk-set-uri: classpath:jwks-test.json
+
+auth0:
+  enabled: true
+  
+test:
+  security:
+    bypass: false
+    mock-user: false

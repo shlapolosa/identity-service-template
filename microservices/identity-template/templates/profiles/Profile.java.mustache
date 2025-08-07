@@ -1,0 +1,64 @@
+package {{package}}.domain.profiles;
+
+import {{package}}.core.domain.BaseProfile;
+import {{package}}.core.domain.BaseUser;
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+{{#relationships}}
+import {{package}}.domain.entities.{{target}};
+{{/relationships}}
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Set;
+
+@Entity
+@Table(name = "{{tableName}}")
+@DiscriminatorValue("{{discriminatorValue}}")
+@Data
+@EqualsAndHashCode(callSuper = true)
+@SuperBuilder
+@NoArgsConstructor
+public class {{name}} extends {{extends}} {
+    
+    {{#attributes}}
+    @Column(name = "{{columnName}}"{{#required}}, nullable = false{{/required}}{{#unique}}, unique = true{{/unique}}{{#length}}, length = {{length}}{{/length}})
+    private {{type}} {{name}};
+    
+    {{/attributes}}
+    
+    {{#relationships}}
+    @{{type}}({{#mappedBy}}mappedBy = "{{mappedBy}}"{{/mappedBy}}{{#cascade}}, cascade = {{{#cascade}}CascadeType.{{.}}{{^last}}, {{/last}}{{/cascade}}}{{/cascade}}{{#fetchType}}, fetch = FetchType.{{fetchType}}{{/fetchType}})
+    {{#joinColumn}}
+    @JoinColumn(name = "{{joinColumn}}")
+    {{/joinColumn}}
+    private {{#isMany}}List<{{target}}>{{/isMany}}{{^isMany}}{{target}}{{/isMany}} {{fieldName}};
+    
+    {{/relationships}}
+    
+    @Override
+    public String getProfileIdentifier() {
+        {{#hasIdentifier}}
+        return this.{{identifierField}};
+        {{/hasIdentifier}}
+        {{^hasIdentifier}}
+        return "{{discriminatorValue}}-" + getId();
+        {{/hasIdentifier}}
+    }
+    
+    @Override
+    public boolean requiresVerification() {
+        return {{requiresVerification}};
+    }
+    
+    {{#customMethods}}
+    {{methodSignature}} {
+        {{methodBody}}
+    }
+    
+    {{/customMethods}}
+}

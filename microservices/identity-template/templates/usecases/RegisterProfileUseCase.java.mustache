@@ -1,0 +1,161 @@
+package {{package}}.application.usecases;
+
+import {{package}}.core.application.BaseRegistrationUseCase;
+import {{package}}.core.domain.BaseUser;
+import {{package}}.core.infrastructure.IdpProvider;
+import {{package}}.core.infrastructure.EventPublisher;
+import {{package}}.domain.profiles.{{profileName}};
+import {{package}}.domain.repositories.{{profileName}}Repository;
+import {{package}}.domain.repositories.UserRepository;
+{{#integrations}}
+import {{package}}.infrastructure.providers.{{name}}Provider;
+{{/integrations}}
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@Component
+@Slf4j
+public class Register{{profileName}}UseCase extends BaseRegistrationUseCase<{{profileName}}> {
+    
+    private final UserRepository userRepository;
+    private final {{profileName}}Repository {{profileNameLower}}Repository;
+    {{#integrations}}
+    private final {{name}}Provider {{nameLower}}Provider;
+    {{/integrations}}
+    
+    public Register{{profileName}}UseCase(
+            IdpProvider idpProvider,
+            EventPublisher eventPublisher,
+            UserRepository userRepository,
+            {{profileName}}Repository {{profileNameLower}}Repository{{#integrations}},
+            {{name}}Provider {{nameLower}}Provider{{/integrations}}) {
+        super(idpProvider, eventPublisher);
+        this.userRepository = userRepository;
+        this.{{profileNameLower}}Repository = {{profileNameLower}}Repository;
+        {{#integrations}}
+        this.{{nameLower}}Provider = {{nameLower}}Provider;
+        {{/integrations}}
+    }
+    
+    @Override
+    protected void validateDomainSpecific(RegistrationCommand command) {
+        {{profileName}}RegistrationCommand specificCommand = ({{profileName}}RegistrationCommand) command;
+        
+        {{#requiredFields}}
+        if (specificCommand.get{{nameCapitalized}}() == null || specificCommand.get{{nameCapitalized}}().isEmpty()) {
+            throw new ValidationException("{{name}} is required");
+        }
+        {{/requiredFields}}
+        
+        {{#uniqueFields}}
+        if ({{profileNameLower}}Repository.existsBy{{nameCapitalized}}(specificCommand.get{{nameCapitalized}}())) {
+            throw new ValidationException("{{name}} already exists");
+        }
+        {{/uniqueFields}}
+        
+        {{#customValidations}}
+        {{validationCode}}
+        {{/customValidations}}
+    }
+    
+    @Override
+    protected BaseUser createUser(RegistrationCommand command, String externalId) {
+        User user = User.builder()
+            .username(command.getEmail())
+            .email(command.getEmail())
+            .firstName(command.getFirstName())
+            .lastName(command.getLastName())
+            .phoneNumber(command.getPhoneNumber())
+            .externalId(externalId)
+            .status(BaseUser.UserStatus.ACTIVE)
+            .emailVerified(false)
+            .build();
+        
+        return userRepository.save(user);
+    }
+    
+    @Override
+    protected {{profileName}} createProfile(RegistrationCommand command, BaseUser user) {
+        {{profileName}}RegistrationCommand specificCommand = ({{profileName}}RegistrationCommand) command;
+        
+        {{profileName}} profile = {{profileName}}.builder()
+            .user(user)
+            {{#attributes}}
+            .{{name}}(specificCommand.get{{nameCapitalized}}())
+            {{/attributes}}
+            .isVerified(false)
+            .build();
+        
+        {{#defaultPermissions}}
+        profile.addPermission("{{.}}");
+        {{/defaultPermissions}}
+        
+        return {{profileNameLower}}Repository.save(profile);
+    }
+    
+    @Override
+    protected void postRegistration({{profileName}} profile) {
+        {{#hasWorkflow}}
+        // Execute {{verificationWorkflow}} workflow
+        log.info("Starting {{verificationWorkflow}} workflow for profile: {}", profile.getId());
+        {{/hasWorkflow}}
+        
+        {{#hasFhirIntegration}}
+        // Create FHIR resource
+        try {
+            String fhirId = fhirProvider.create{{profileName}}(profile);
+            profile.setFhir{{profileName}}Id(fhirId);
+            {{profileNameLower}}Repository.save(profile);
+            log.info("Created FHIR resource with ID: {}", fhirId);
+        } catch (Exception e) {
+            log.error("Failed to create FHIR resource: ", e);
+            // Continue with registration even if FHIR fails
+        }
+        {{/hasFhirIntegration}}
+        
+        {{#customPostRegistration}}
+        {{postRegistrationCode}}
+        {{/customPostRegistration}}
+    }
+    
+    @Override
+    protected Map<String, Object> buildMetadata(RegistrationCommand command) {
+        {{profileName}}RegistrationCommand specificCommand = ({{profileName}}RegistrationCommand) command;
+        Map<String, Object> metadata = new HashMap<>();
+        
+        metadata.put("profileType", "{{discriminatorValue}}");
+        {{#metadataFields}}
+        metadata.put("{{name}}", specificCommand.get{{nameCapitalized}}());
+        {{/metadataFields}}
+        
+        return metadata;
+    }
+    
+    @Override
+    protected void cleanupFailedRegistration(RegistrationCommand command, Exception e) {
+        log.error("Cleaning up failed registration for {{profileName}}: {}", command.getEmail(), e);
+        // Implement cleanup logic if needed
+    }
+    
+    public static class {{profileName}}RegistrationCommand extends RegistrationCommand {
+        {{#attributes}}
+        private {{type}} {{name}};
+        {{/attributes}}
+        
+        // Getters and setters
+        {{#attributes}}
+        public {{type}} get{{nameCapitalized}}() {
+            return {{name}};
+        }
+        
+        public void set{{nameCapitalized}}({{type}} {{name}}) {
+            this.{{name}} = {{name}};
+        }
+        
+        {{/attributes}}
+    }
+}

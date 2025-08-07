@@ -1,0 +1,173 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healthcare-identity-service
+  namespace: healthcare
+  labels:
+    app: healthcare-identity-service
+    version: v1
+    component: identity
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: healthcare-identity-service
+  template:
+    metadata:
+      labels:
+        app: healthcare-identity-service
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: healthcare-identity-service
+      
+      # Init container to wait for dependencies
+      initContainers:
+      - name: wait-for-postgres
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z postgres.healthcare.svc.cluster.local 5432; do echo waiting for postgres; sleep 2; done']
+      
+      - name: wait-for-redis
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z redis-master.healthcare.svc.cluster.local 6379; do echo waiting for redis; sleep 2; done']
+      
+      containers:
+      - name: healthcare-identity-service
+        image: heathhealthregistry.azurecr.io/healthcare-identity-service:latest
+        imagePullPolicy: Always
+        
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        
+        # Environment variables from ConfigMap
+        envFrom:
+        - configMapRef:
+            name: healthcare-identity-service-config
+        - secretRef:
+            name: healthcare-identity-service-secrets
+        
+        # Additional environment variables
+        env:
+        - name: JAVA_OPTS
+          value: "-Xms512m -Xmx1024m -XX:+UseG1GC -XX:MaxGCPauseMillis=100"
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production"
+        - name: HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Resource limits
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        
+        # Volume mounts
+        volumeMounts:
+        - name: application-config
+          mountPath: /app/config
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+        
+        # Security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      
+      # Volumes
+      volumes:
+      - name: application-config
+        configMap:
+          name: healthcare-identity-service-config
+      - name: tmp
+        emptyDir: {}
+      
+      # Node selection
+      nodeSelector:
+        workload: general
+      
+      # Tolerations
+      tolerations:
+      - key: "workload"
+        operator: "Equal"
+        value: "general"
+        effect: "NoSchedule"
+      
+      # Anti-affinity for high availability
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - healthcare-identity-service
+              topologyKey: kubernetes.io/hostname
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: healthcare-identity-service
+  namespace: healthcare
+  labels:
+    app: healthcare-identity-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: healthcare-identity-service
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: healthcare-identity-service
+  namespace: healthcare
+  labels:
+    app: healthcare-identity-service

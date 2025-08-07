@@ -1,0 +1,504 @@
+# Education Domain Identity Service Configuration
+# This preset creates a FERPA-compliant identity service for educational institutions
+
+service:
+  name: "education-identity-service"
+  package: "com.education.identity"
+  groupId: "com.education"
+  artifactId: "education-identity-service"
+  version: "1.0.0"
+  domain: "education"
+  description: "FERPA-compliant identity and access management for educational institutions"
+
+profiles:
+  - name: "Student"
+    extends: "BaseProfile"
+    tableName: "students"
+    discriminatorValue: "STUDENT"
+    attributes:
+      - name: "studentId"
+        type: "String"
+        columnName: "student_id"
+        required: true
+        unique: true
+        length: 20
+      - name: "dateOfBirth"
+        type: "LocalDate"
+        columnName: "date_of_birth"
+        required: true
+      - name: "gradeLevel"
+        type: "String"
+        columnName: "grade_level"
+        required: true
+        length: 20
+      - name: "enrollmentDate"
+        type: "LocalDate"
+        columnName: "enrollment_date"
+        required: true
+      - name: "graduationYear"
+        type: "Integer"
+        columnName: "graduation_year"
+        required: false
+      - name: "major"
+        type: "String"
+        columnName: "major"
+        required: false
+        length: 100
+      - name: "minor"
+        type: "String"
+        columnName: "minor"
+        required: false
+        length: 100
+      - name: "gpa"
+        type: "BigDecimal"
+        columnName: "gpa"
+        required: false
+      - name: "creditHours"
+        type: "Integer"
+        columnName: "credit_hours"
+        required: false
+      - name: "academicStatus"
+        type: "String"
+        columnName: "academic_status"
+        required: true
+        length: 50
+      - name: "housingStatus"
+        type: "String"
+        columnName: "housing_status"
+        required: false
+        length: 50
+      - name: "lmsUserId"
+        type: "String"
+        columnName: "lms_user_id"
+        required: false
+        unique: true
+        length: 100
+    relationships:
+      - type: "OneToMany"
+        target: "Enrollment"
+        mappedBy: "student"
+        cascade: ["ALL"]
+        fetchType: "LAZY"
+      - type: "OneToMany"
+        target: "Grade"
+        mappedBy: "student"
+        cascade: ["ALL"]
+        fetchType: "LAZY"
+      - type: "ManyToMany"
+        target: "Course"
+        mappedBy: "students"
+        fetchType: "LAZY"
+    permissions:
+      - "VIEW_OWN_GRADES"
+      - "VIEW_OWN_SCHEDULE"
+      - "REGISTER_COURSES"
+      - "VIEW_TRANSCRIPT"
+      - "REQUEST_DOCUMENTS"
+    requiresVerification: false
+    verificationWorkflow: "student-enrollment"
+
+  - name: "Teacher"
+    extends: "BaseProfile"
+    tableName: "teachers"
+    discriminatorValue: "TEACHER"
+    attributes:
+      - name: "employeeId"
+        type: "String"
+        columnName: "employee_id"
+        required: true
+        unique: true
+        length: 20
+      - name: "department"
+        type: "String"
+        columnName: "department"
+        required: true
+        length: 100
+      - name: "subjects"
+        type: "String"
+        columnName: "subjects"
+        required: true
+        length: 500
+      - name: "certifications"
+        type: "String"
+        columnName: "certifications"
+        required: false
+        length: 500
+      - name: "yearsOfExperience"
+        type: "Integer"
+        columnName: "years_experience"
+        required: false
+      - name: "educationLevel"
+        type: "String"
+        columnName: "education_level"
+        required: true
+        length: 50
+      - name: "officeLocation"
+        type: "String"
+        columnName: "office_location"
+        required: false
+        length: 100
+      - name: "officeHours"
+        type: "String"
+        columnName: "office_hours"
+        required: false
+        length: 200
+    relationships:
+      - type: "OneToMany"
+        target: "Course"
+        mappedBy: "instructor"
+        cascade: ["ALL"]
+        fetchType: "LAZY"
+      - type: "OneToMany"
+        target: "Assignment"
+        mappedBy: "teacher"
+        cascade: ["ALL"]
+        fetchType: "LAZY"
+    permissions:
+      - "VIEW_STUDENT_RECORDS"
+      - "MANAGE_GRADES"
+      - "CREATE_ASSIGNMENTS"
+      - "MANAGE_ATTENDANCE"
+      - "COMMUNICATE_PARENTS"
+      - "ACCESS_LMS"
+    requiresVerification: true
+    verificationWorkflow: "teacher-credential-verification"
+
+  - name: "Parent"
+    extends: "BaseProfile"
+    tableName: "parents"
+    discriminatorValue: "PARENT"
+    attributes:
+      - name: "parentId"
+        type: "String"
+        columnName: "parent_id"
+        required: true
+        unique: true
+        length: 20
+      - name: "relationship"
+        type: "String"
+        columnName: "relationship"
+        required: true
+        length: 50
+      - name: "primaryContact"
+        type: "Boolean"
+        columnName: "primary_contact"
+        required: true
+      - name: "emergencyContact"
+        type: "Boolean"
+        columnName: "emergency_contact"
+        required: true
+      - name: "communicationPreference"
+        type: "String"
+        columnName: "communication_preference"
+        required: false
+        length: 50
+    relationships:
+      - type: "ManyToMany"
+        target: "Student"
+        mappedBy: "parents"
+        fetchType: "LAZY"
+    permissions:
+      - "VIEW_CHILD_GRADES"
+      - "VIEW_CHILD_ATTENDANCE"
+      - "COMMUNICATE_TEACHERS"
+      - "VIEW_SCHOOL_CALENDAR"
+      - "PAY_FEES"
+    requiresVerification: true
+    verificationWorkflow: "parent-verification"
+
+  - name: "Administrator"
+    extends: "BaseProfile"
+    tableName: "administrators"
+    discriminatorValue: "ADMINISTRATOR"
+    attributes:
+      - name: "employeeId"
+        type: "String"
+        columnName: "employee_id"
+        required: true
+        unique: true
+        length: 20
+      - name: "position"
+        type: "String"
+        columnName: "position"
+        required: true
+        length: 100
+      - name: "department"
+        type: "String"
+        columnName: "department"
+        required: true
+        length: 100
+      - name: "accessLevel"
+        type: "String"
+        columnName: "access_level"
+        required: true
+        length: 50
+    permissions:
+      - "MANAGE_ALL_USERS"
+      - "VIEW_ALL_RECORDS"
+      - "GENERATE_REPORTS"
+      - "MANAGE_CURRICULUM"
+      - "APPROVE_ENROLLMENTS"
+      - "MANAGE_FACILITIES"
+    requiresVerification: true
+    verificationWorkflow: "admin-approval"
+
+authentication:
+  providers:
+    primary:
+      type: "cognito"
+      config:
+        region: "${AWS_REGION}"
+        userPoolId: "${COGNITO_USER_POOL_ID}"
+        clientId: "${COGNITO_CLIENT_ID}"
+        clientSecret: "${COGNITO_CLIENT_SECRET}"
+    secondary:
+      type: "saml"
+      enabled: true
+      config:
+        idpMetadataUrl: "${SAML_IDP_METADATA_URL}"
+  methods:
+    - type: "password"
+      enabled: true
+      config:
+        requireStrongPassword: true
+    - type: "sso"
+      enabled: true
+      config:
+        providers: ["google", "microsoft", "clever"]
+    - type: "mfa"
+      enabled: true
+      config:
+        required: false
+        requiredForRoles: ["ADMINISTRATOR", "TEACHER"]
+        methods: ["sms", "email", "authenticator"]
+  session:
+    provider: "redis"
+    timeout: 7200 # 2 hours
+    refreshEnabled: true
+    maxSessions: 3
+
+integrations:
+  - name: "lms"
+    type: "rest"
+    enabled: true
+    config:
+      provider: "canvas" # canvas, blackboard, moodle, google-classroom
+      url: "${LMS_API_URL}"
+      authentication:
+        type: "oauth2"
+        clientId: "${LMS_CLIENT_ID}"
+        clientSecret: "${LMS_CLIENT_SECRET}"
+    eventMappings:
+      - event: "StudentEnrolled"
+        action: "createLmsUser"
+        transformer: "StudentToLmsTransformer"
+      - event: "CourseCreated"
+        action: "syncCourseToLms"
+        transformer: "CourseToLmsTransformer"
+  
+  - name: "sis"
+    type: "rest"
+    enabled: true
+    config:
+      provider: "powerschool" # powerschool, infinite-campus, skyward
+      url: "${SIS_API_URL}"
+      authentication:
+        type: "apikey"
+        apiKey: "${SIS_API_KEY}"
+  
+  - name: "google-workspace"
+    type: "rest"
+    enabled: true
+    config:
+      domain: "${GOOGLE_WORKSPACE_DOMAIN}"
+      serviceAccountKey: "${GOOGLE_SERVICE_ACCOUNT_KEY}"
+  
+  - name: "kafka"
+    type: "kafka"
+    enabled: true
+    config:
+      bootstrapServers: "${KAFKA_BOOTSTRAP_SERVERS}"
+      topics:
+        - name: "education-events"
+          partitions: 5
+        - name: "attendance-events"
+          partitions: 3
+        - name: "grade-events"
+          partitions: 3
+
+features:
+  registration:
+    enabled: true
+    workflows:
+      - name: "student-enrollment"
+        steps: ["verify-eligibility", "collect-documents", "assign-student-id", "create-accounts", "notify-teachers"]
+        approvalRequired: false
+      - name: "teacher-onboarding"
+        steps: ["background-check", "credential-verification", "assign-courses", "lms-setup", "training"]
+        approvalRequired: true
+      - name: "parent-registration"
+        steps: ["verify-relationship", "consent-forms", "communication-setup"]
+        approvalRequired: false
+    emailVerification: true
+    phoneVerification: false
+    captcha: true
+    ageVerification:
+      enabled: true
+      coppaCompliant: true
+      parentalConsentAge: 13
+  
+  authentication:
+    enabled: true
+    passwordPolicy:
+      minLength: 8
+      requireUppercase: true
+      requireLowercase: true
+      requireNumbers: true
+      requireSpecialChars: false
+      expirationDays: 180
+    accountLockout:
+      enabled: true
+      maxAttempts: 5
+      lockoutDuration: 1800
+    studentPasswordReset:
+      requireTeacherApproval: true
+      notifyParents: true
+  
+  profileManagement:
+    enabled: true
+    selfServiceFields: ["email", "phoneNumber", "communicationPreference"]
+    adminOnlyFields: ["studentId", "gradeLevel", "gpa", "academicStatus"]
+    parentEditableFields: ["emergencyContact", "medicalInformation"]
+    auditChanges: true
+  
+  userManagement:
+    enabled: true
+    bulkOperations: true
+    import: true
+    export: true
+    rostering:
+      enabled: true
+      provider: "clever"
+      autoSync: true
+  
+  apiAccess:
+    enabled: true
+    rateLimit: 500
+    authentication: "jwt"
+    documentation: true
+    studentDataApi:
+      enabled: true
+      requireConsent: true
+
+compliance:
+  standards: ["FERPA", "COPPA", "GDPR", "CCPA", "IDEA", "ADA"]
+  dataClassification:
+    - field: "studentId"
+      classification: "confidential"
+      encryption: true
+    - field: "dateOfBirth"
+      classification: "confidential"
+      encryption: true
+    - field: "gpa"
+      classification: "confidential"
+      encryption: false
+    - field: "grades"
+      classification: "restricted"
+      encryption: true
+  audit:
+    enabled: true
+    level: "detailed"
+    retention: 1825 # 5 years for FERPA
+    storage: "database"
+    educationRecords:
+      specialHandling: true
+      retentionYears: 5
+  encryption:
+    atRest:
+      enabled: true
+      algorithm: "AES-256"
+    inTransit:
+      enabled: true
+      tlsVersion: "1.2"
+  pii:
+    anonymization: true
+    pseudonymization: true
+    rightToErasure: false # Limited by FERPA
+    dataPortability: true
+    parentalAccess:
+      enabled: true
+      requireVerification: true
+      excludeGradesOver18: true
+  studentPrivacy:
+    directoryInformation:
+      optOut: true
+      fields: ["name", "address", "email", "phone", "photograph"]
+    thirdPartySharing:
+      requireConsent: true
+      approvedVendors: ["${APPROVED_VENDORS}"]
+
+database:
+  type: "postgresql"
+  migrations:
+    tool: "liquibase"
+    autoRun: true
+  connection:
+    poolSize: 20
+    timeout: 5000
+
+messaging:
+  type: "kafka"
+  topics:
+    - name: "student-events"
+      partitions: 5
+      replicationFactor: 3
+      retention: 157680000000 # 5 years
+    - name: "grade-events"
+      partitions: 3
+      replicationFactor: 3
+      retention: 157680000000 # 5 years
+    - name: "attendance-events"
+      partitions: 3
+      replicationFactor: 3
+      retention: 31536000000 # 1 year
+
+observability:
+  metrics:
+    enabled: true
+    provider: "cloudwatch"
+    customMetrics:
+      - "student.enrollment.count"
+      - "attendance.rate"
+      - "assignment.completion.rate"
+  tracing:
+    enabled: true
+    provider: "xray"
+  logging:
+    level: "INFO"
+    format: "json"
+    output: "cloudwatch"
+    ferpaCompliant: true
+
+deployment:
+  containerRegistry: "education-registry.azurecr.io"
+  namespace: "education"
+  replicas: 3
+  resources:
+    cpu: "500m"
+    memory: "1Gi"
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPU: 70
+    scaleBySchedule:
+      enabled: true
+      schoolHours:
+        min: 5
+        max: 15
+      afterHours:
+        min: 2
+        max: 5
+  healthChecks:
+    liveness: "/actuator/health/liveness"
+    readiness: "/actuator/health/readiness"

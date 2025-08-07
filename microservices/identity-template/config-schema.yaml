@@ -1,0 +1,193 @@
+# Identity Service Template Configuration Schema
+# This file defines the structure for creating custom identity services
+
+service:
+  name: string # Service name (e.g., "clinic-identity-service")
+  package: string # Java package name (e.g., "com.clinic.identity")
+  groupId: string # Maven group ID
+  artifactId: string # Maven artifact ID
+  version: string # Service version
+  domain: string # Domain type: healthcare, financial, education, retail, generic
+  description: string # Service description
+
+# Define custom profile types that extend BaseProfile
+profiles:
+  - name: string # Profile class name (e.g., "Patient")
+    extends: string # Parent class: BaseProfile or another profile
+    tableName: string # Database table name
+    discriminatorValue: string # JPA discriminator value
+    attributes:
+      - name: string # Attribute name
+        type: string # Java type (String, Long, LocalDateTime, etc.)
+        columnName: string # Database column name
+        required: boolean # Is this field required?
+        unique: boolean # Is this field unique?
+        length: integer # Max length for strings
+        validation: string # Validation pattern or rule
+    relationships:
+      - type: string # OneToMany, ManyToOne, ManyToMany, OneToOne
+        target: string # Target entity class
+        mappedBy: string # Field name in target entity
+        cascade: array # Cascade types: ALL, PERSIST, MERGE, REMOVE
+        fetchType: string # EAGER or LAZY
+    permissions:
+      - string # List of default permissions for this profile type
+    requiresVerification: boolean # Does this profile require verification?
+    verificationWorkflow: string # Name of verification workflow
+
+# Authentication configuration
+authentication:
+  providers:
+    primary: 
+      type: string # auth0, okta, keycloak, cognito, custom
+      config:
+        domain: string
+        clientId: string
+        clientSecret: string
+        audience: string
+    secondary:
+      type: string # ldap, saml, oauth2
+      enabled: boolean
+  methods:
+    - type: string # password, biometric, mfa, sso
+      enabled: boolean
+      config: object # Method-specific configuration
+  session:
+    provider: string # redis, inmemory, database
+    timeout: integer # Session timeout in seconds
+    refreshEnabled: boolean
+    maxSessions: integer # Max concurrent sessions per user
+
+# External integrations
+integrations:
+  - name: string # Integration name
+    type: string # fhir, kafka, rest, graphql, grpc
+    enabled: boolean
+    config:
+      url: string
+      authentication: object
+      timeout: integer
+      retryPolicy: object
+    eventMappings: # Map domain events to integration actions
+      - event: string
+        action: string
+        transformer: string
+
+# Feature flags and capabilities
+features:
+  registration:
+    enabled: boolean
+    workflows:
+      - name: string
+        steps: array
+        approvalRequired: boolean
+    emailVerification: boolean
+    phoneVerification: boolean
+    captcha: boolean
+  
+  authentication:
+    enabled: boolean
+    passwordPolicy:
+      minLength: integer
+      requireUppercase: boolean
+      requireLowercase: boolean
+      requireNumbers: boolean
+      requireSpecialChars: boolean
+      expirationDays: integer
+    accountLockout:
+      enabled: boolean
+      maxAttempts: integer
+      lockoutDuration: integer
+    
+  profileManagement:
+    enabled: boolean
+    selfServiceFields: array # Fields users can edit themselves
+    adminOnlyFields: array # Fields only admins can edit
+    auditChanges: boolean
+  
+  userManagement:
+    enabled: boolean
+    bulkOperations: boolean
+    import: boolean
+    export: boolean
+  
+  apiAccess:
+    enabled: boolean
+    rateLimit: integer
+    authentication: string # jwt, apikey, oauth2
+    documentation: boolean # Generate OpenAPI docs
+
+# Compliance and security
+compliance:
+  standards: array # HIPAA, GDPR, PCI-DSS, SOX, FERPA, etc.
+  dataClassification:
+    - field: string
+    - classification: string # public, internal, confidential, restricted
+    - encryption: boolean
+  audit:
+    enabled: boolean
+    level: string # basic, detailed, verbose
+    retention: integer # Days to retain audit logs
+    storage: string # database, file, cloudwatch, elasticsearch
+  encryption:
+    atRest:
+      enabled: boolean
+      algorithm: string
+    inTransit:
+      enabled: boolean
+      tlsVersion: string
+  
+  pii: # Personal Identifiable Information handling
+    anonymization: boolean
+    pseudonymization: boolean
+    rightToErasure: boolean # GDPR right to be forgotten
+    dataPortability: boolean # GDPR data portability
+
+# Database configuration
+database:
+  type: string # postgresql, mysql, oracle, h2
+  migrations:
+    tool: string # liquibase, flyway
+    autoRun: boolean
+  connection:
+    poolSize: integer
+    timeout: integer
+  
+# Messaging configuration
+messaging:
+  type: string # kafka, rabbitmq, sqs, pubsub
+  topics:
+    - name: string
+      partitions: integer
+      replicationFactor: integer
+      retention: integer
+
+# Observability
+observability:
+  metrics:
+    enabled: boolean
+    provider: string # prometheus, cloudwatch, datadog
+  tracing:
+    enabled: boolean
+    provider: string # jaeger, zipkin, xray
+  logging:
+    level: string # DEBUG, INFO, WARN, ERROR
+    format: string # json, text
+    output: string # console, file, cloudwatch
+
+# Deployment configuration
+deployment:
+  containerRegistry: string
+  namespace: string
+  replicas: integer
+  resources:
+    cpu: string
+    memory: string
+  autoscaling:
+    enabled: boolean
+    minReplicas: integer
+    maxReplicas: integer
+    targetCPU: integer
+  healthChecks:
+    liveness: string
+    readiness: string

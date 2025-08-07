@@ -1,0 +1,114 @@
+package {{package}}.interfaces.rest;
+
+import {{package}}.application.usecases.Register{{profileName}}UseCase;
+import {{package}}.application.usecases.Get{{profileName}}UseCase;
+import {{package}}.application.dto.{{profileName}}DTO;
+import {{package}}.application.dto.RegistrationResult;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/{{pathName}}")
+@Tag(name = "{{profileName}} Management", description = "Endpoints for managing {{profileNameLower}} profiles")
+@RequiredArgsConstructor
+@Slf4j
+public class {{profileName}}Controller {
+    
+    private final Register{{profileName}}UseCase register{{profileName}}UseCase;
+    private final Get{{profileName}}UseCase get{{profileName}}UseCase;
+    
+    @PostMapping("/register")
+    @Operation(summary = "Register a new {{profileNameLower}}")
+    public ResponseEntity<RegistrationResult> register(
+            @Valid @RequestBody Register{{profileName}}UseCase.{{profileName}}RegistrationCommand command) {
+        log.info("Registering new {{profileNameLower}}: {}", command.getEmail());
+        RegistrationResult result = register{{profileName}}UseCase.execute(command);
+        return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+    
+    @GetMapping("/{id}")
+    @Operation(summary = "Get {{profileNameLower}} by ID")
+    {{#requiresAuth}}
+    @PreAuthorize("hasRole('ADMIN') or hasRole('{{roleUpperCase}}') or @securityService.isOwner(#id)")
+    {{/requiresAuth}}
+    public ResponseEntity<{{profileName}}DTO> get{{profileName}}(@PathVariable Long id) {
+        log.info("Fetching {{profileNameLower}} with ID: {}", id);
+        {{profileName}}DTO {{profileNameLower}} = get{{profileName}}UseCase.execute(id);
+        return ResponseEntity.ok({{profileNameLower}});
+    }
+    
+    @GetMapping
+    @Operation(summary = "List all {{profileNameLower}}s")
+    {{#requiresAuth}}
+    @PreAuthorize("hasRole('ADMIN') or hasRole('{{viewAllRole}}')")
+    {{/requiresAuth}}
+    public ResponseEntity<List<{{profileName}}DTO>> list{{profileName}}s(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search) {
+        log.info("Listing {{profileNameLower}}s - page: {}, size: {}, search: {}", page, size, search);
+        List<{{profileName}}DTO> {{profileNameLower}}s = get{{profileName}}UseCase.list(page, size, search);
+        return ResponseEntity.ok({{profileNameLower}}s);
+    }
+    
+    @PutMapping("/{id}")
+    @Operation(summary = "Update {{profileNameLower}}")
+    {{#requiresAuth}}
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(#id)")
+    {{/requiresAuth}}
+    public ResponseEntity<{{profileName}}DTO> update{{profileName}}(
+            @PathVariable Long id,
+            @Valid @RequestBody {{profileName}}DTO updateRequest) {
+        log.info("Updating {{profileNameLower}} with ID: {}", id);
+        {{profileName}}DTO updated = get{{profileName}}UseCase.update(id, updateRequest);
+        return ResponseEntity.ok(updated);
+    }
+    
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Delete {{profileNameLower}}")
+    {{#requiresAuth}}
+    @PreAuthorize("hasRole('ADMIN')")
+    {{/requiresAuth}}
+    public ResponseEntity<Void> delete{{profileName}}(@PathVariable Long id) {
+        log.info("Deleting {{profileNameLower}} with ID: {}", id);
+        get{{profileName}}UseCase.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+    
+    {{#hasVerification}}
+    @PostMapping("/{id}/verify")
+    @Operation(summary = "Verify {{profileNameLower}} profile")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VERIFIER')")
+    public ResponseEntity<{{profileName}}DTO> verify{{profileName}}(
+            @PathVariable Long id,
+            @RequestParam String verifiedBy) {
+        log.info("Verifying {{profileNameLower}} with ID: {} by: {}", id, verifiedBy);
+        {{profileName}}DTO verified = get{{profileName}}UseCase.verify(id, verifiedBy);
+        return ResponseEntity.ok(verified);
+    }
+    {{/hasVerification}}
+    
+    {{#customEndpoints}}
+    @{{method}}Mapping("{{path}}")
+    @Operation(summary = "{{summary}}")
+    {{#requiresAuth}}
+    @PreAuthorize("{{authExpression}}")
+    {{/requiresAuth}}
+    public ResponseEntity<{{responseType}}> {{methodName}}(
+            {{#pathVariables}}@PathVariable {{type}} {{name}}{{^last}}, {{/last}}{{/pathVariables}}
+            {{#requestBody}}@Valid @RequestBody {{type}} {{name}}{{/requestBody}}) {
+        log.info("{{logMessage}}");
+        {{responseType}} result = {{serviceCall}};
+        return ResponseEntity.{{responseStatus}}(result);
+    }
+    {{/customEndpoints}}
+}

@@ -1,0 +1,446 @@
+# Financial Services Identity Service Configuration
+# This preset creates a PCI-DSS and SOX compliant identity service for financial institutions
+
+service:
+  name: "financial-identity-service"
+  package: "com.financial.identity"
+  groupId: "com.financial"
+  artifactId: "financial-identity-service"
+  version: "1.0.0"
+  domain: "financial"
+  description: "PCI-DSS compliant identity and access management for financial services"
+
+profiles:
+  - name: "Customer"
+    extends: "BaseProfile"
+    tableName: "customers"
+    discriminatorValue: "CUSTOMER"
+    attributes:
+      - name: "accountNumber"
+        type: "String"
+        columnName: "account_number"
+        required: true
+        unique: true
+        length: 20
+      - name: "socialSecurityNumber"
+        type: "String"
+        columnName: "ssn"
+        required: true
+        unique: true
+        length: 11
+      - name: "dateOfBirth"
+        type: "LocalDate"
+        columnName: "date_of_birth"
+        required: true
+      - name: "annualIncome"
+        type: "BigDecimal"
+        columnName: "annual_income"
+        required: false
+      - name: "creditScore"
+        type: "Integer"
+        columnName: "credit_score"
+        required: false
+      - name: "kycStatus"
+        type: "String"
+        columnName: "kyc_status"
+        required: true
+        length: 20
+      - name: "kycVerificationDate"
+        type: "LocalDateTime"
+        columnName: "kyc_verification_date"
+        required: false
+      - name: "riskLevel"
+        type: "String"
+        columnName: "risk_level"
+        required: false
+        length: 20
+      - name: "preferredBranch"
+        type: "String"
+        columnName: "preferred_branch"
+        required: false
+        length: 100
+    relationships:
+      - type: "OneToMany"
+        target: "Account"
+        mappedBy: "customer"
+        cascade: ["ALL"]
+        fetchType: "LAZY"
+      - type: "OneToMany"
+        target: "Transaction"
+        mappedBy: "customer"
+        cascade: ["ALL"]
+        fetchType: "LAZY"
+    permissions:
+      - "VIEW_OWN_ACCOUNTS"
+      - "TRANSFER_FUNDS"
+      - "VIEW_STATEMENTS"
+      - "REQUEST_CARD"
+    requiresVerification: true
+    verificationWorkflow: "kyc-verification"
+
+  - name: "Banker"
+    extends: "BaseProfile"
+    tableName: "bankers"
+    discriminatorValue: "BANKER"
+    attributes:
+      - name: "employeeId"
+        type: "String"
+        columnName: "employee_id"
+        required: true
+        unique: true
+        length: 20
+      - name: "branch"
+        type: "String"
+        columnName: "branch"
+        required: true
+        length: 100
+      - name: "department"
+        type: "String"
+        columnName: "department"
+        required: true
+        length: 50
+      - name: "position"
+        type: "String"
+        columnName: "position"
+        required: true
+        length: 50
+      - name: "authorizationLevel"
+        type: "Integer"
+        columnName: "authorization_level"
+        required: true
+      - name: "transactionLimit"
+        type: "BigDecimal"
+        columnName: "transaction_limit"
+        required: true
+    permissions:
+      - "VIEW_CUSTOMER_ACCOUNTS"
+      - "APPROVE_LOANS"
+      - "CREATE_ACCOUNTS"
+      - "PROCESS_TRANSACTIONS"
+      - "VIEW_REPORTS"
+    requiresVerification: true
+    verificationWorkflow: "employee-verification"
+
+  - name: "ComplianceOfficer"
+    extends: "BaseProfile"
+    tableName: "compliance_officers"
+    discriminatorValue: "COMPLIANCE_OFFICER"
+    attributes:
+      - name: "employeeId"
+        type: "String"
+        columnName: "employee_id"
+        required: true
+        unique: true
+        length: 20
+      - name: "certifications"
+        type: "String"
+        columnName: "certifications"
+        required: false
+        length: 500
+      - name: "jurisdiction"
+        type: "String"
+        columnName: "jurisdiction"
+        required: true
+        length: 100
+    permissions:
+      - "VIEW_ALL_TRANSACTIONS"
+      - "FLAG_SUSPICIOUS_ACTIVITY"
+      - "GENERATE_SAR_REPORTS"
+      - "AUDIT_ACCOUNTS"
+      - "FREEZE_ACCOUNTS"
+    requiresVerification: true
+    verificationWorkflow: "compliance-officer-verification"
+
+  - name: "Auditor"
+    extends: "BaseProfile"
+    tableName: "auditors"
+    discriminatorValue: "AUDITOR"
+    attributes:
+      - name: "auditorLicense"
+        type: "String"
+        columnName: "auditor_license"
+        required: true
+        unique: true
+        length: 50
+      - name: "firm"
+        type: "String"
+        columnName: "firm"
+        required: false
+        length: 100
+      - name: "auditScope"
+        type: "String"
+        columnName: "audit_scope"
+        required: true
+        length: 200
+    permissions:
+      - "VIEW_AUDIT_TRAILS"
+      - "EXPORT_REPORTS"
+      - "VIEW_SYSTEM_LOGS"
+      - "ACCESS_HISTORICAL_DATA"
+    requiresVerification: true
+    verificationWorkflow: "auditor-verification"
+
+authentication:
+  providers:
+    primary:
+      type: "okta"
+      config:
+        domain: "${OKTA_DOMAIN}"
+        clientId: "${OKTA_CLIENT_ID}"
+        clientSecret: "${OKTA_CLIENT_SECRET}"
+        issuer: "${OKTA_ISSUER}"
+    secondary:
+      type: "saml"
+      enabled: true
+  methods:
+    - type: "password"
+      enabled: true
+      config:
+        requireStrongPassword: true
+        passwordHistoryCount: 12
+    - type: "mfa"
+      enabled: true
+      config:
+        required: true
+        methods: ["sms", "authenticator", "hardware-token"]
+    - type: "biometric"
+      enabled: true
+      config:
+        devices: ["fingerprint", "face", "voice"]
+  session:
+    provider: "redis"
+    timeout: 900 # 15 minutes
+    refreshEnabled: true
+    maxSessions: 1
+    absoluteTimeout: 28800 # 8 hours
+
+integrations:
+  - name: "kyc-provider"
+    type: "rest"
+    enabled: true
+    config:
+      url: "${KYC_PROVIDER_URL}"
+      authentication:
+        type: "apikey"
+        apiKey: "${KYC_API_KEY}"
+      timeout: 30000
+    eventMappings:
+      - event: "CustomerRegistered"
+        action: "initiateKycVerification"
+        transformer: "CustomerToKycTransformer"
+  
+  - name: "credit-bureau"
+    type: "rest"
+    enabled: true
+    config:
+      url: "${CREDIT_BUREAU_URL}"
+      authentication:
+        type: "oauth2"
+        clientId: "${CREDIT_BUREAU_CLIENT_ID}"
+        clientSecret: "${CREDIT_BUREAU_CLIENT_SECRET}"
+  
+  - name: "fraud-detection"
+    type: "grpc"
+    enabled: true
+    config:
+      host: "${FRAUD_SERVICE_HOST}"
+      port: 9090
+      useTls: true
+  
+  - name: "kafka"
+    type: "kafka"
+    enabled: true
+    config:
+      bootstrapServers: "${KAFKA_BOOTSTRAP_SERVERS}"
+      securityProtocol: "SASL_SSL"
+      topics:
+        - name: "financial-events"
+          partitions: 10
+        - name: "audit-events"
+          partitions: 5
+        - name: "compliance-events"
+          partitions: 3
+
+features:
+  registration:
+    enabled: true
+    workflows:
+      - name: "customer-onboarding"
+        steps: ["identity-verification", "kyc-check", "credit-check", "risk-assessment", "account-creation"]
+        approvalRequired: false
+      - name: "employee-onboarding"
+        steps: ["background-check", "credential-verification", "training-completion", "system-access"]
+        approvalRequired: true
+    emailVerification: true
+    phoneVerification: true
+    captcha: true
+    identityVerification:
+      enabled: true
+      providers: ["jumio", "onfido"]
+  
+  authentication:
+    enabled: true
+    passwordPolicy:
+      minLength: 14
+      requireUppercase: true
+      requireLowercase: true
+      requireNumbers: true
+      requireSpecialChars: true
+      expirationDays: 60
+      passwordHistoryCount: 12
+      complexityScore: 4
+    accountLockout:
+      enabled: true
+      maxAttempts: 3
+      lockoutDuration: 3600
+      permanentLockoutThreshold: 10
+    deviceFingerprinting:
+      enabled: true
+      provider: "threatmetrix"
+  
+  profileManagement:
+    enabled: true
+    selfServiceFields: ["email", "phoneNumber", "preferredBranch"]
+    adminOnlyFields: ["accountNumber", "creditScore", "riskLevel", "transactionLimit"]
+    auditChanges: true
+    requireApprovalFor: ["annualIncome", "address"]
+  
+  userManagement:
+    enabled: true
+    bulkOperations: false
+    import: true
+    export: false
+    privilegedAccessManagement:
+      enabled: true
+      justInTimeAccess: true
+      maxElevationDuration: 3600
+  
+  apiAccess:
+    enabled: true
+    rateLimit: 100
+    authentication: "oauth2"
+    documentation: true
+    sandboxMode: true
+
+compliance:
+  standards: ["PCI-DSS", "SOX", "GDPR", "CCPA", "AML", "KYC", "FATCA"]
+  dataClassification:
+    - field: "socialSecurityNumber"
+      classification: "restricted"
+      encryption: true
+      tokenization: true
+    - field: "accountNumber"
+      classification: "restricted"
+      encryption: true
+      masking: true
+    - field: "creditScore"
+      classification: "confidential"
+      encryption: true
+    - field: "annualIncome"
+      classification: "confidential"
+      encryption: true
+  audit:
+    enabled: true
+    level: "verbose"
+    retention: 2555 # 7 years for SOX
+    storage: "elasticsearch"
+    immutable: true
+    realTimeAlerts: true
+  encryption:
+    atRest:
+      enabled: true
+      algorithm: "AES-256-GCM"
+      keyRotation: 90
+    inTransit:
+      enabled: true
+      tlsVersion: "1.3"
+      mutualTls: true
+  pii:
+    anonymization: true
+    pseudonymization: true
+    rightToErasure: true
+    dataPortability: true
+    tokenization:
+      enabled: true
+      provider: "protegrity"
+  fraudPrevention:
+    enabled: true
+    realTimeScoring: true
+    mlModelVersion: "v2.3.1"
+    riskThresholds:
+      low: 0.3
+      medium: 0.6
+      high: 0.8
+
+database:
+  type: "postgresql"
+  migrations:
+    tool: "liquibase"
+    autoRun: false
+  connection:
+    poolSize: 30
+    timeout: 5000
+  encryption:
+    transparentDataEncryption: true
+    columnLevelEncryption: ["ssn", "account_number"]
+
+messaging:
+  type: "kafka"
+  topics:
+    - name: "customer-events"
+      partitions: 10
+      replicationFactor: 3
+      retention: 31536000000 # 1 year
+    - name: "transaction-events"
+      partitions: 20
+      replicationFactor: 3
+      retention: 63072000000 # 2 years
+    - name: "audit-events"
+      partitions: 5
+      replicationFactor: 3
+      retention: 220752000000 # 7 years
+    - name: "compliance-events"
+      partitions: 3
+      replicationFactor: 3
+      retention: 220752000000 # 7 years
+
+observability:
+  metrics:
+    enabled: true
+    provider: "datadog"
+    customMetrics:
+      - "transaction.volume"
+      - "fraud.score"
+      - "kyc.verification.time"
+  tracing:
+    enabled: true
+    provider: "jaeger"
+    samplingRate: 1.0
+  logging:
+    level: "INFO"
+    format: "json"
+    output: "splunk"
+    securityLogging:
+      enabled: true
+      separateIndex: true
+
+deployment:
+  containerRegistry: "financial-registry.azurecr.io"
+  namespace: "financial-services"
+  replicas: 5
+  resources:
+    cpu: "1000m"
+    memory: "2Gi"
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPU: 60
+    targetMemory: 70
+  healthChecks:
+    liveness: "/actuator/health/liveness"
+    readiness: "/actuator/health/readiness"
+  securityPolicies:
+    networkPolicies: true
+    podSecurityPolicy: "restricted"
+    serviceAccount: "financial-identity-sa"

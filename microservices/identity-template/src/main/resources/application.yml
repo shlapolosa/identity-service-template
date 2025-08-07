@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: healthcare-identity-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:default}
+
+# Common configuration for all profiles
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+  shutdown: graceful
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    com.healthcare.identity: ${APP_LOG_LEVEL:DEBUG}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Domain-specific configuration
+domain:
+  type: healthcare
+  compliance:
+    standards: ${COMPLIANCE_STANDARDS:HIPAA,GDPR}
+    audit:
+      enabled: ${AUDIT_ENABLED:true}
