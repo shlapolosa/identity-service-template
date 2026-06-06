@@ -2,6 +2,13 @@
 # All sensitive values are injected via environment variables from Kubernetes secrets
 
 spring:
+  # Cache-on-GET by default (platform binding contract): binding a redis
+  # component injects SPRING_CACHE_TYPE=redis + REDIS_* via "<name>-conn";
+  # unbound deployments fall back to type none (no-op cache, identical code).
+  cache:
+    type: ${SPRING_CACHE_TYPE:none}
+    redis:
+      time-to-live: ${CACHE_TTL_MS:60000}
   # Database Configuration - Injected by infrastructure
   datasource:
     # Platform binding contract: DB_* keys arrive via envFrom "<db-component>-conn"

@@ -22,7 +22,7 @@ import java.util.Set;
 @Data
 @SuperBuilder
 @NoArgsConstructor
-public abstract class BaseProfile {
+public abstract class BaseProfile implements java.io.Serializable {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
