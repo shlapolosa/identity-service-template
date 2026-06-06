@@ -6,18 +6,18 @@ FROM maven:3.9-eclipse-temurin-21-alpine AS builder
 WORKDIR /app
 
 # Copy Maven files for dependency resolution
+# (use the build image's mvn directly - the template ships no maven wrapper,
+# and COPY mvnw/.mvn of nonexistent files broke every scaffolded CI build)
 COPY pom.xml .
-COPY .mvn .mvn
-COPY mvnw .
 
 # Download dependencies (cached layer)
-RUN ./mvnw dependency:go-offline -B
+RUN mvn dependency:go-offline -B
 
 # Copy source code
 COPY src src
 
 # Build application
-RUN ./mvnw clean package -DskipTests -B
+RUN mvn clean package -DskipTests -B
 
 # Stage 2: Runtime
 FROM eclipse-temurin:21-jre-alpine
