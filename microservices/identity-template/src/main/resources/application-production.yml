@@ -4,9 +4,13 @@
 spring:
   # Database Configuration - Injected by infrastructure
   datasource:
-    url: ${DATABASE_URL}  # Format: jdbc:postgresql://host:port/database
-    username: ${DATABASE_USER}
-    password: ${DATABASE_PASSWORD}
+    # Platform binding contract: DB_* keys arrive via envFrom "<db-component>-conn"
+    # when the OAM sets `database: <component-name>`. JDBC_DATABASE_URL overrides
+    # for BYO connection strings. (DATABASE_URL from the contract is libpq-style,
+    # not JDBC, so the URL is assembled from parts here.)
+    url: ${JDBC_DATABASE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:identity}}
+    username: ${DB_USER:${DATABASE_USER:postgres}}
+    password: ${DB_PASSWORD:${DATABASE_PASSWORD:}}
     driver-class-name: org.postgresql.Driver
     hikari:
       pool-name: IdentityServiceHikariCP
