@@ -1,1 +1,38 @@
+# Identity-service CI (was an empty 1-byte placeholder — generated repos never
+# built an image). Builds the root Dockerfile (multi-stage Maven) and pushes
+# to the platform ACR as <repo>:latest + <repo>:<short-sha>. The service is
+# then deployable as an OAM `webservice` component with
+#   image: healthidpuaeacr.azurecr.io/<repo>:<short-sha>
+#   database: <pg-component>   identity: <auth0-component>
+# (binding contract envFroms <ref>-conn secrets).
+name: Identity Service CI
 
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  ACR_REGISTRY: healthidpuaeacr.azurecr.io
+  ACR_NAME: healthidpuaeacr
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build and push to ACR
+        run: |
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          IMAGE_BASE="${ACR_REGISTRY}/${GITHUB_REPOSITORY#*/}"
+          az acr login --name "$ACR_NAME"
+          docker build -t "$IMAGE_BASE:$SHORT_SHA" -t "$IMAGE_BASE:latest" .
+          docker push "$IMAGE_BASE:$SHORT_SHA"
+          docker push "$IMAGE_BASE:latest"
+          echo "pushed $IMAGE_BASE:$SHORT_SHA"
