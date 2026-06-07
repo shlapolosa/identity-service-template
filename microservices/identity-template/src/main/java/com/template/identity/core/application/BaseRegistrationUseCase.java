@@ -135,7 +135,16 @@ public abstract class BaseRegistrationUseCase<P extends BaseProfile> {
         private String externalId;
         private String profileType;
         private boolean success;
-        
+
+        // Getters: without them Jackson cannot serialize the registration
+        // response (HttpMediaTypeNotAcceptableException surfaced as 401 -
+        // caught patient2-identity, 2026-06-07).
+        public Long getUserId() { return userId; }
+        public Long getProfileId() { return profileId; }
+        public String getExternalId() { return externalId; }
+        public String getProfileType() { return profileType; }
+        public boolean isSuccess() { return success; }
+
         public static RegistrationResultBuilder builder() {
             return new RegistrationResultBuilder();
         }
