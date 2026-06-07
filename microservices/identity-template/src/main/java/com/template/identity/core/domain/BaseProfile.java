@@ -71,18 +71,31 @@ public abstract class BaseProfile implements java.io.Serializable {
     public abstract boolean requiresVerification();
     
     public void addAttribute(String key, String value) {
-        this.additionalAttributes.put(key, value);
+        attributesSafe().put(key, value);
     }
     
     public String getAttribute(String key) {
-        return this.additionalAttributes.get(key);
+        return attributesSafe().get(key);
     }
     
+    // @SuperBuilder bypasses field initializers, so builder-constructed
+    // profiles arrive with null collections (NPE on first addPermission -
+    // caught patient2-identity registration, 2026-06-07). Lazy-init guards.
+    private java.util.Set<String> permissionsSafe() {
+        if (this.permissions == null) this.permissions = new java.util.HashSet<>();
+        return this.permissions;
+    }
+
+    private java.util.Map<String, String> attributesSafe() {
+        if (this.additionalAttributes == null) this.additionalAttributes = new java.util.HashMap<>();
+        return this.additionalAttributes;
+    }
+
     public void addPermission(String permission) {
-        this.permissions.add(permission);
+        permissionsSafe().add(permission);
     }
     
     public boolean hasPermission(String permission) {
-        return this.permissions.contains(permission);
+        return permissionsSafe().contains(permission);
     }
 }
