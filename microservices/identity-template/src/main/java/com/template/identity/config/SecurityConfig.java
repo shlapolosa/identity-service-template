@@ -25,6 +25,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private static final String[] PUBLIC = {
+            "/health", "/ready", "/openapi.json",
             "/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus",
             "/api/v1/profiles/register",
             "/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/h2-console/**"
