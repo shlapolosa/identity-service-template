@@ -30,7 +30,10 @@ spring:
   
   jpa:
     hibernate:
-      ddl-auto: validate # Never auto-create in production
+      # Platform decision 2026-06-07: schema-on-boot, same pattern as the
+      # python template (create_all). Switch to `validate` + liquibase below
+      # when you adopt managed migrations.
+      ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -46,9 +49,11 @@ spring:
     show-sql: false
     open-in-view: false
   
-  # Liquibase - Database migrations
+  # Liquibase - Database migrations (off by default: no changelog is shipped;
+  # referencing a missing classpath changelog crashes boot. Enable + add
+  # db/changelog/db.changelog-master.xml to adopt managed migrations.)
   liquibase:
-    enabled: true
+    enabled: false
     change-log: classpath:db/changelog/db.changelog-master.xml
     contexts: production
     default-schema: ${DATABASE_SCHEMA:public}
