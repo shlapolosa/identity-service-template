@@ -153,11 +153,11 @@ cp -r "$TEMPLATE_DIR/." "$OUTPUT_DIR/"
 
 # Step 2: Process pom.xml
 print_message "$BLUE" "Step 2: Processing pom.xml..."
-sed -i.bak "s|{{groupId}}|$GROUP_ID|g" "$OUTPUT_DIR/pom.xml"
-sed -i.bak "s|{{artifactId}}|$ARTIFACT_ID|g" "$OUTPUT_DIR/pom.xml"
-sed -i.bak "s|{{version}}|$VERSION|g" "$OUTPUT_DIR/pom.xml"
-sed -i.bak "s|{{serviceName}}|$SERVICE_NAME|g" "$OUTPUT_DIR/pom.xml"
-sed -i.bak "s|{{domain}}|$DOMAIN|g" "$OUTPUT_DIR/pom.xml"
+sed -i.bak "s|io.cafe.platform|$GROUP_ID|g" "$OUTPUT_DIR/pom.xml"
+sed -i.bak "s|<artifactId>identity-template</artifactId>|<artifactId>$ARTIFACT_ID</artifactId>|g" "$OUTPUT_DIR/pom.xml"
+sed -i.bak "s|<version>0.1.0-SNAPSHOT</version>|<version>$VERSION</version>|g" "$OUTPUT_DIR/pom.xml"
+sed -i.bak "s|<name>identity-template</name>|<name>$SERVICE_NAME</name>|g" "$OUTPUT_DIR/pom.xml"
+sed -i.bak "s|Identity Service (Pattern B profile authority)|Identity Service for $DOMAIN domain|g" "$OUTPUT_DIR/pom.xml"
 rm "$OUTPUT_DIR/pom.xml.bak"
 
 # Step 3: Process Spring profiles
