@@ -21,6 +21,10 @@ spring:
     driver-class-name: org.postgresql.Driver
     hikari:
       pool-name: IdentityServiceHikariCP
+      # Must match hibernate provider_disables_autocommit:true below -
+      # mismatched defaults threw "Cannot commit when autoCommit is enabled"
+      # on the first transactional commit (caught patient2-identity 2026-06-07).
+      auto-commit: false
       maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
       minimum-idle: ${DB_POOL_MIN_IDLE:10}
       connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
