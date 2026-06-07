@@ -82,6 +82,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
+        <!-- Lettuce pooling (spring.data.redis.lettuce.pool in production profile)
+             requires commons-pool2 at runtime - without it the context fails with
+             NoClassDefFoundError GenericObjectPoolConfig (caught patient2-identity day-0). -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+        </dependency>
         
         <!-- Kafka -->
         <dependency>
